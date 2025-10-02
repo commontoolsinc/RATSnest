@@ -1,9 +1,9 @@
 {
   "tasks": {
     "dev:api": "deno run --allow-net --allow-read --allow-ffi --watch main.ts",
-    "dev:tunnel": "deno run --allow-net --allow-read --allow-env --allow-ffi --unstable-ffi --watch tunnel.ts",
-    "dev:tunnel:tdx": "USE_REAL_TDX=true deno run --allow-net --allow-read --allow-env --allow-ffi --unstable-ffi --watch tunnel.ts",
-    "dev": "deno run --allow-net --allow-read --allow-env --allow-ffi --unstable-ffi --watch tunnel.ts",
+    "dev:tunnel": "deno run --allow-net --allow-read --allow-write --allow-env --watch tunnel.ts",
+    "dev:tunnel:tdx": "USE_REAL_TDX=true deno run --allow-all --watch tunnel.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-env --watch tunnel.ts",
     "build": "cd ../frontend && npm run build && cd ../backend && mkdir -p dist && deno compile --allow-all --include=../frontend/dist --output=dist/ratsnest main.ts"
   },
   "imports": {

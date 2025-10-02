@@ -18,6 +18,15 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
+// Helper to preview quote bytes
+function previewQuote(quote: Uint8Array, label: string) {
+  const preview = Array.from(quote.slice(0, 100))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join(' ');
+  console.log(`[Quote Preview] ${label}:`);
+  console.log(`  ${preview}...`);
+}
+
 // Get quote function - uses real TDX if enabled, otherwise sample quote
 async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] getQuote called with pubkey length: ${x25519PublicKey.length}`);
@@ -27,6 +36,7 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
     try {
       const quote = await getTdxQuote(x25519PublicKey);
       console.log(`[TunnelServer] Returning real TDX quote of length: ${quote.length}`);
+      previewQuote(quote, "Real TDX Quote");
       return { quote };
     } catch (err) {
       console.error(`[TunnelServer] Failed to get real TDX quote:`, err);
@@ -37,6 +47,7 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   // Fallback: Sample TDX v4 quote
   const sampleQuote = hexToBytes(tappdV4Hex);
   console.log(`[TunnelServer] Returning sample TDX v4 quote of length: ${sampleQuote.length}`);
+  previewQuote(sampleQuote, "Sample TDX Quote");
 
   return {
     quote: sampleQuote,
