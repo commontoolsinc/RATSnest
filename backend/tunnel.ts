@@ -1,29 +1,36 @@
 import express from "express";
-import { TunnelServer } from "@teekit/tunnel";
+import { TunnelServer, type QuoteData } from "@teekit/tunnel";
 import type { Request, Response } from "@types/express";
-import type { QuoteData } from "@teekit/tunnel";
+import { tappdV4Hex } from "./samples.ts";
 
 const HONO_PORT = 4000;
 const TUNNEL_PORT = 3000;
 
-// Stub getQuote function - returns mock attestation data for now
+// Helper to convert hex to bytes
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.replace(/^0x/i, "");
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < clean.length; i += 2) {
+    bytes[i / 2] = parseInt(clean.substring(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+// Stub getQuote function - returns sample quote for now
 async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] getQuote called with pubkey length: ${x25519PublicKey.length}`);
 
-  // Mock quote - in Phase 4 this will be replaced with real TDX quote generation
-  const mockQuote = new Uint8Array(64);
-  mockQuote.fill(0x42); // Fill with placeholder bytes
-
-  // In a real implementation, this would:
+  // Sample TDX v4 quote - in Phase 4 this will be replaced with real quote from /dev/tdx_guest
+  // The real implementation will:
   // 1. Hash the x25519PublicKey with SHA-384
   // 2. Bind it to report_data
-  // 3. Call TDX guest device to generate quote
-  // 4. Return the actual quote bytes
+  // 3. Call /dev/tdx_guest to generate quote
+  const sampleQuote = hexToBytes(tappdV4Hex);
 
-  console.log(`[TunnelServer] Returning mock quote of length: ${mockQuote.length}`);
+  console.log(`[TunnelServer] Returning sample TDX v4 quote of length: ${sampleQuote.length}`);
 
   return {
-    quote: mockQuote,
+    quote: sampleQuote,
   };
 }
 
@@ -34,7 +41,9 @@ async function main() {
   app.use(async (req: Request, res: Response, next) => {
     console.log(`[Proxy] ${req.method} ${req.url}`);
     try {
-      const url = `http://localhost:${HONO_PORT}${req.url}`;
+      // Extract just the path from req.url (might be full URL from tunnel)
+      const urlPath = req.url.startsWith('http') ? new URL(req.url).pathname + new URL(req.url).search : req.url;
+      const url = `http://localhost:${HONO_PORT}${urlPath}`;
       const method = req.method;
 
       console.log(`[Proxy] Forwarding to: ${url}`);
