@@ -1,10 +1,12 @@
 import express from "express";
 import { TunnelServer, type QuoteData } from "@teekit/tunnel";
 import type { Request, Response } from "@types/express";
+import { getQuote as getTdxQuote } from "./tdx.ts";
 import { tappdV4Hex } from "./samples.ts";
 
 const HONO_PORT = 4000;
 const TUNNEL_PORT = 3000;
+const USE_REAL_TDX = Deno.env.get("USE_REAL_TDX") === "true";
 
 // Helper to convert hex to bytes
 function hexToBytes(hex: string): Uint8Array {
@@ -16,17 +18,24 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-// Stub getQuote function - returns sample quote for now
+// Get quote function - uses real TDX if enabled, otherwise sample quote
 async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] getQuote called with pubkey length: ${x25519PublicKey.length}`);
 
-  // Sample TDX v4 quote - in Phase 4 this will be replaced with real quote from /dev/tdx_guest
-  // The real implementation will:
-  // 1. Hash the x25519PublicKey with SHA-384
-  // 2. Bind it to report_data
-  // 3. Call /dev/tdx_guest to generate quote
-  const sampleQuote = hexToBytes(tappdV4Hex);
+  if (USE_REAL_TDX) {
+    // Phase 4: Real TDX quote generation
+    try {
+      const quote = await getTdxQuote(x25519PublicKey);
+      console.log(`[TunnelServer] Returning real TDX quote of length: ${quote.length}`);
+      return { quote };
+    } catch (err) {
+      console.error(`[TunnelServer] Failed to get real TDX quote:`, err);
+      console.log(`[TunnelServer] Falling back to sample quote`);
+    }
+  }
 
+  // Fallback: Sample TDX v4 quote
+  const sampleQuote = hexToBytes(tappdV4Hex);
   console.log(`[TunnelServer] Returning sample TDX v4 quote of length: ${sampleQuote.length}`);
 
   return {
