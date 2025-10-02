@@ -31,7 +31,7 @@ console.log(`Static files root: ${staticRoot} (compiled: ${isCompiled})`);
 // Static file serving for SPA
 app.get("*", serveStatic({ root: staticRoot }));
 
-const port = 3000;
-console.log(`Server running on http://localhost:${port}`);
+const port = 4000;
+console.log(`[Hono] Server running on http://localhost:${port}`);
 
 Deno.serve({ port }, app.fetch);
