@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --watch main.ts",
+    "build": "cd ../frontend && npm run build && cd ../backend && mkdir -p dist && deno compile --allow-all --include=../frontend/dist --output=dist/ratsnest main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "hono": "jsr:@hono/hono@^4"
+  }
+}
