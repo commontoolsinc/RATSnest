@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@teekit/qvl": "^0.0.1",
+    "@teekit/tunnel": "^0.0.1",
+    "buffer": "^6.0.3",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "util": "^0.12.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
