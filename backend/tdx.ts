@@ -9,7 +9,7 @@ const TD_REPORT_DATA_SIZE = 64;
  */
 async function hashPubkeyToReportData(x25519PublicKey: Uint8Array): Promise<Uint8Array> {
   // SHA-384 produces 48 bytes, we pad with zeros to 64 bytes
-  const hash = await crypto.subtle.digest("SHA-384", x25519PublicKey);
+  const hash = await crypto.subtle.digest("SHA-384", x25519PublicKey as BufferSource);
   const reportData = new Uint8Array(TD_REPORT_DATA_SIZE);
   reportData.set(new Uint8Array(hash), 0);
   return reportData;

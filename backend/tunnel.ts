@@ -1,6 +1,5 @@
-import express from "express";
+import express, { type Request, type Response } from "express";
 import { TunnelServer, type QuoteData } from "@teekit/tunnel";
-import type { Request, Response } from "@types/express";
 import { getQuote as getTdxQuote } from "./tdx.ts";
 import { tappdV4Hex } from "./samples.ts";
 import { createHonoApp } from "./main.ts";

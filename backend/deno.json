@@ -4,7 +4,7 @@
     "dev:tunnel": "deno run --allow-net --allow-read --allow-write --allow-env --watch tunnel.ts",
     "dev:tunnel:tdx": "USE_REAL_TDX=true deno run --allow-all --watch tunnel.ts",
     "dev": "deno run --allow-net --allow-read --allow-write --allow-env --watch tunnel.ts",
-    "build": "cd ../frontend && npm run build && cd ../backend && mkdir -p dist && deno compile --allow-all --include=../frontend/dist --output=dist/ratsnest main.ts"
+    "build": "cd ../frontend && npm run build && cd ../backend && mkdir -p dist && deno compile --allow-all --include=../frontend/dist --output=dist/ratsnest tunnel.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
