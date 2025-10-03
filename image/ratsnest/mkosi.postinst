@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Enable ratsnest service by creating symlinks
+mkdir -p "$BUILDROOT/etc/systemd/system/minimal.target.wants"
+ln -sf /etc/systemd/system/ratsnest.service \
+    "$BUILDROOT/etc/systemd/system/minimal.target.wants/ratsnest.service"
+
+# Set default target to minimal.target
+ln -sf /lib/systemd/system/minimal.target \
+    "$BUILDROOT/etc/systemd/system/default.target"
+
+echo "[PostInst] Ratsnest service enabled and set as default target"

@@ -1,0 +1,16 @@
+[Unit]
+Description=Ratsnest TDX Remote Attestation Service
+After=network.target network-setup.service
+Requires=network-setup.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ratsnest
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=USE_REAL_TDX=true
+
+[Install]
+WantedBy=minimal.target

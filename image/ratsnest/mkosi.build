@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euxo pipefail
+
+# Binary is already in place via ExtraTrees
+# Just verify it exists
+if [ ! -f "$DESTDIR/usr/bin/ratsnest" ]; then
+    echo "Error: ratsnest binary not found!"
+    exit 1
+fi
+
+echo "[Build] Ratsnest binary verified at /usr/bin/ratsnest"

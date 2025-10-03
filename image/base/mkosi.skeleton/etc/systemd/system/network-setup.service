@@ -1,0 +1,12 @@
+[Unit]
+Description=Network Setup
+After=network.target
+Before=ratsnest.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'ip link set dev eth0 up && dhclient eth0'
+
+[Install]
+WantedBy=minimal.target

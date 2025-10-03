@@ -1,5 +1,7 @@
 # Backend build artifacts
 backend/dist/
+backend/deno.lock
+backend/node_modules/
 
 # Frontend build artifacts
 frontend/dist/
@@ -10,3 +12,9 @@ node_modules/
 # Environment files
 .env
 .env.local
+
+# Image build artifacts
+build/
+mkosi.builddir/
+mkosi.cache/
+mkosi.packages/
