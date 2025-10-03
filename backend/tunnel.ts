@@ -3,6 +3,7 @@ import { TunnelServer, type QuoteData } from "@teekit/tunnel";
 import type { Request, Response } from "@types/express";
 import { getQuote as getTdxQuote } from "./tdx.ts";
 import { tappdV4Hex } from "./samples.ts";
+import { createHonoApp } from "./main.ts";
 
 const HONO_PORT = 4000;
 const TUNNEL_PORT = 3000;
@@ -55,6 +56,12 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
 }
 
 async function main() {
+  // Start Hono API server
+  const honoApp = createHonoApp();
+  console.log(`[Hono] Starting on http://localhost:${HONO_PORT}`);
+  Deno.serve({ port: HONO_PORT }, honoApp.fetch);
+
+  // Create Express app for TunnelServer
   const app = express();
 
   // Proxy all requests to the Hono backend

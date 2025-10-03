@@ -50,7 +50,7 @@ function App() {
 
   return (
     <>
-      <h1>RATSnest - Phase 3</h1>
+      <h1>RATSnest</h1>
       <div className="card">
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}
