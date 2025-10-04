@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# Source Nix profile if it exists
+if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+    source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FLASHBOTS_IMAGES="/home/jake/flashbots-images"
