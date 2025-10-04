@@ -7,10 +7,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Configuration (override with environment variables)
 GCP_PROJECT="${GCP_PROJECT:-$(gcloud config get-value project 2>/dev/null || echo "")}"
 GCP_BUCKET="${GCP_BUCKET:-ratsnest-images}"
-GCP_ZONE="${GCP_ZONE:-us-central1-a}"
+GCP_ZONE="${GCP_ZONE:-us-west1-a}"
 IMAGE_NAME="${IMAGE_NAME:-ratsnest-tdx}"
 INSTANCE_NAME="${INSTANCE_NAME:-ratsnest-vm}"
-MACHINE_TYPE="${MACHINE_TYPE:-n2d-standard-2}"
+MACHINE_TYPE="${MACHINE_TYPE:-c3-standard-4}"
 
 if [ -z "$GCP_PROJECT" ]; then
     echo "Error: GCP_PROJECT not set and could not be detected from gcloud config"
@@ -72,9 +72,26 @@ else
     echo "✓ Image created: $GCP_IMAGE_NAME"
 fi
 
-# Step 4: Create/Update VM Instance
+# Step 4: Create/Update Firewall Rules
 echo ""
-echo "[4/4] Creating/updating VM instance..."
+echo "[4/6] Creating/updating firewall rules..."
+
+# Create firewall rule for port 3000
+if gcloud compute firewall-rules describe allow-ratsnest-3000 --project="$GCP_PROJECT" &>/dev/null; then
+    echo "✓ Firewall rule allow-ratsnest-3000 exists"
+else
+    gcloud compute firewall-rules create allow-ratsnest-3000 \
+        --project="$GCP_PROJECT" \
+        --allow=tcp:3000 \
+        --source-ranges=0.0.0.0/0 \
+        --target-tags=ratsnest \
+        --description="Allow inbound traffic on port 3000 for Ratsnest"
+    echo "✓ Firewall rule created: allow-ratsnest-3000"
+fi
+
+# Step 5: Create/Update VM Instance
+echo ""
+echo "[5/6] Creating/updating VM instance..."
 
 # Check if instance exists
 if gcloud compute instances describe "$INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT" &>/dev/null; then
@@ -93,6 +110,7 @@ else
         --machine-type="$MACHINE_TYPE" \
         --maintenance-policy=TERMINATE \
         --network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+        --tags=ratsnest \
         --no-restart-on-failure
 
     echo "✓ Instance created: $INSTANCE_NAME"
