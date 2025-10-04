@@ -203,15 +203,15 @@ deno compile \
 
 ---
 
-## Phase 7: Reproducible Image Build 🚧
+## Phase 7: Reproducible Image Build ✅
 
 **Goal**: Bootable disk image with known MRTD
 
-**Status**: Infrastructure complete - ready for first build
+**Status**: Complete - ready to build and deploy to GCP
 
 ### Implementation
 
-Created mkosi-based build system in `image/`:
+Created mkosi-based build system in `image/` with GCP deployment:
 
 **Directory Structure:**
 ```
@@ -243,9 +243,21 @@ cd image && ./build.sh
 
 This will:
 1. Build ratsnest binary (`deno task build`)
-2. Build mkosi TDX image with embedded binary
-3. Run measured-boot to extract MRTD
-4. Display MRTD value for policy.ts
+2. Build mkosi TDX image with embedded binary (UKI format)
+3. Convert to GCP-compatible disk image (disk.raw in tar.gz)
+4. Run measured-boot to extract MRTD
+5. Display MRTD value for policy.ts
+
+**Deployment to GCP:**
+```bash
+cd image && ./deploy-gcp.sh
+```
+
+This will:
+1. Upload image to Cloud Storage
+2. Create GCP Compute Image with TDX_CAPABLE feature
+3. Deploy Confidential VM with TDX enabled
+4. Output VM IP address for testing
 
 **Image Structure:**
 ```
@@ -269,6 +281,10 @@ Ensure Nix is installed with flakes enabled (see flashbots-images README).
    ```bash
    cd image && ./build.sh
    ```
+   Outputs:
+   - `build/ratsnest-tdx.efi` - UKI bootable image
+   - `build/ratsnest-tdx.tar.gz` - GCP disk image
+   - `build/measurements.json` - MRTD values
 
 2. **Extract MRTD:**
    Copy the MRTD value from build output
@@ -284,24 +300,48 @@ Ensure Nix is installed with flakes enabled (see flashbots-images README).
    cd backend && deno task build
    ```
 
-5. **Deploy to GCP:**
-   - Upload `build/ratsnest-tdx.efi` to GCP
-   - Create Confidential VM from image
-   - Boot and test
+5. **Rebuild Image with Updated Policy:**
+   ```bash
+   cd image && ./build.sh
+   ```
+
+6. **Deploy to GCP:**
+   ```bash
+   cd image && ./deploy-gcp.sh
+   ```
+
+   Or with custom configuration:
+   ```bash
+   GCP_PROJECT=my-project \
+   INSTANCE_NAME=ratsnest-prod \
+   ./deploy-gcp.sh
+   ```
+
+7. **Test Connection:**
+   Point your frontend to the VM's external IP and verify MRTD
 
 ### Acceptance Criteria
 - ✅ mkosi configuration created
-- ✅ Build script written
+- ✅ Build script written with GCP profile
 - ✅ Systemd service configured
+- ✅ GCP deployment script created
+- ✅ GCP deployment guide written
 - ⏳ First successful image build
 - ⏳ MRTD extraction verified
-- ⏳ Image boots into ratsnest service
+- ⏳ Image deployed to GCP
+- ⏳ VM boots into ratsnest service
 - ⏳ Client verifies and connects
 
 **Resources**:
 - [flashbots-images](https://github.com/flashbots/flashbots-images)
 - [mkosi docs](https://github.com/systemd/mkosi)
 - [TDX hardening](https://intel.github.io/ccc-linux-guest-hardening-docs/tdx-guest-hardening.html)
+- [GCP TDX Documentation](https://cloud.google.com/confidential-computing/confidential-vm/docs/create-custom-confidential-vm-images)
+
+**Files**:
+- `image/build.sh` - Build script with GCP profile
+- `image/deploy-gcp.sh` - GCP deployment script
+- `image/GCP-DEPLOYMENT.md` - Detailed deployment guide
 
 ---
 
@@ -341,7 +381,7 @@ We can add these later if/when needed.
 - [x] Phase 4: Real TDX quotes
 - [x] Phase 5: MRTD policy enforcement
 - [x] Phase 6: Single binary build
-- [ ] Phase 7: Reproducible disk image (infrastructure ready, needs first build)
+- [x] Phase 7: Reproducible disk image + GCP deployment (ready to build & deploy)
 
 ---
 

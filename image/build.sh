@@ -32,22 +32,33 @@ chmod 755 "$PROJECT_ROOT/image/ratsnest/mkosi.extra/usr/bin/ratsnest"
 
 # Step 2: Build mkosi image
 echo ""
-echo "[2/4] Building mkosi image..."
+echo "[2/4] Building mkosi image with GCP conversion..."
 cd "$FLASHBOTS_IMAGES"
 
-# Call mkosi directly through nix develop (we have Nix installed)
-nix develop -c mkosi --force -I "$PROJECT_ROOT/image/ratsnest.conf"
+# Call mkosi with GCP profile to generate both UKI and GCP-compatible disk.raw
+nix develop -c mkosi --force -I "$PROJECT_ROOT/image/ratsnest.conf" --profile=gcp
 
 if [ ! -f "$FLASHBOTS_IMAGES/build/tdx-debian.efi" ]; then
     echo "Error: Image not found at $FLASHBOTS_IMAGES/build/tdx-debian.efi"
     exit 1
 fi
 
+if [ ! -f "$FLASHBOTS_IMAGES/build/tdx-debian.tar.gz" ]; then
+    echo "Warning: GCP disk image not found at $FLASHBOTS_IMAGES/build/tdx-debian.tar.gz"
+    echo "GCP profile may not have run successfully"
+fi
+
 # Copy to project build directory
 mkdir -p "$PROJECT_ROOT/build"
 cp "$FLASHBOTS_IMAGES/build/tdx-debian.efi" "$PROJECT_ROOT/build/ratsnest-tdx.efi"
 
-echo "✓ Image built: $(ls -lh $PROJECT_ROOT/build/ratsnest-tdx.efi | awk '{print $5}')"
+if [ -f "$FLASHBOTS_IMAGES/build/tdx-debian.tar.gz" ]; then
+    cp "$FLASHBOTS_IMAGES/build/tdx-debian.tar.gz" "$PROJECT_ROOT/build/ratsnest-tdx.tar.gz"
+    echo "✓ Image built: $(ls -lh $PROJECT_ROOT/build/ratsnest-tdx.efi | awk '{print $5}')"
+    echo "✓ GCP image:   $(ls -lh $PROJECT_ROOT/build/ratsnest-tdx.tar.gz | awk '{print $5}')"
+else
+    echo "✓ Image built: $(ls -lh $PROJECT_ROOT/build/ratsnest-tdx.efi | awk '{print $5}')"
+fi
 
 # Step 3: Extract MRTD measurements
 echo ""
