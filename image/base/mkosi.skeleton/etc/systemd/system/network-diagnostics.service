@@ -1,0 +1,14 @@
+[Unit]
+Description=Network Diagnostics
+After=network.target
+Before=network-setup.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/network-diagnostics
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=minimal.target

@@ -109,7 +109,7 @@ else
         --confidential-compute-type=TDX \
         --machine-type="$MACHINE_TYPE" \
         --maintenance-policy=TERMINATE \
-        --network-interface=network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+        --network-interface=nic-type=GVNIC,network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
         --tags=ratsnest \
         --no-restart-on-failure
 

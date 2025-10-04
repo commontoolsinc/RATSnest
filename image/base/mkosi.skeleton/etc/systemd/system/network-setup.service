@@ -4,9 +4,8 @@ After=network.target
 Before=ratsnest.service
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -c 'ip link set dev eth0 up && dhclient eth0'
+Type=forking
+ExecStart=/bin/network-setup-wrapper
 
 [Install]
 WantedBy=minimal.target
