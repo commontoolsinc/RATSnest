@@ -69,10 +69,12 @@ async function getQuoteViaConfigFS(reportData: Uint8Array): Promise<Uint8Array> 
  */
 /**
  * Extract MRTD from TDX quote for policy validation
- * MRTD is 48 bytes located at offset 160 (48 header + 112 in body)
+ * MRTD (mr_td) is 48 bytes located at offset 184:
+ *   48 (header) + 16 (tee_tcb_svn) + 48 (mr_seam) + 48 (mr_seam_signer) +
+ *   4 (seam_svn) + 4 (reserved0) + 8 (td_attributes) + 8 (xfam) = 184
  */
 function extractMRTD(quote: Uint8Array): string {
-  const MRTD_OFFSET = 160;
+  const MRTD_OFFSET = 184;
   const MRTD_SIZE = 48;
 
   if (quote.length < MRTD_OFFSET + MRTD_SIZE) {
