@@ -31,6 +31,10 @@ function previewQuote(quote: Uint8Array, label: string) {
 async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] getQuote called with pubkey length: ${x25519PublicKey.length}`);
 
+  // Debug: Log handshake details for verification
+  const pubkeyHex = Array.from(x25519PublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log(`[Handshake Debug] Server received client pubkey: ${pubkeyHex}`);
+
   if (USE_REAL_TDX) {
     // Phase 4: Real TDX quote generation
     try {

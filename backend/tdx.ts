@@ -90,6 +90,13 @@ export async function getQuote(x25519PublicKey: Uint8Array): Promise<Uint8Array>
   const reportData = await hashPubkeyToReportData(x25519PublicKey);
   console.log(`[TDX] Report data (SHA-384): ${reportData.length} bytes`);
 
+  // Debug: Log handshake binding details
+  const sha384 = await crypto.subtle.digest("SHA-384", x25519PublicKey as BufferSource);
+  const sha384Hex = Array.from(new Uint8Array(sha384)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const reportDataHex = Array.from(reportData).map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log(`[Handshake Debug] SHA-384(pubkey): ${sha384Hex}`);
+  console.log(`[Handshake Debug] Report data: ${reportDataHex}`);
+
   // Step 2: Generate TDX quote via ConfigFS-TSM
   const quote = await getQuoteViaConfigFS(reportData);
   console.log(`[TDX] Got TDX Quote: ${quote.length} bytes`);

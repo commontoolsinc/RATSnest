@@ -1,6 +1,7 @@
 import { Hono, Context } from "hono";
 import { serveStatic } from "hono/deno";
 import { cors } from "hono/cors";
+import { createDebugRoutes } from "./debug.ts";
 
 /**
  * Create and configure the Hono app with API routes and static file serving
@@ -23,6 +24,10 @@ export function createHonoApp() {
   app.get("/api/hello", (c: Context) => {
     return c.json({ message: "world" });
   });
+
+  // Debug routes (for development/verification only)
+  const debugRoutes = createDebugRoutes();
+  app.route("/debug", debugRoutes);
 
   // Determine if running from compiled binary
   const isCompiled = Deno.execPath().includes("ratsnest");
