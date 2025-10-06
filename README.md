@@ -91,6 +91,9 @@ The MRTD (Measurement of Trust Domain) is a SHA-384 hash of the kernel, initrd, 
 # Full deployment (build image + deploy to GCP)
 make deploy
 
+# Replace existing VM with new image
+REPLACE_VM=true make deploy
+
 # Or step-by-step:
 make image          # Build TDX disk image
 make deploy-gcp     # Upload and deploy to GCP
@@ -99,9 +102,13 @@ make deploy-gcp     # Upload and deploy to GCP
 ### Environment Variables
 
 ```bash
+# GCP Configuration
 export GCP_PROJECT=your-project-id
 export GCP_ZONE=us-west1-a
 export INSTANCE_NAME=ratsnest-vm
+
+# Deployment Options
+export REPLACE_VM=true  # Delete and recreate VM during deploy
 ```
 
 ### Access Deployed Instance

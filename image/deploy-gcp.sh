@@ -95,46 +95,59 @@ echo "[5/6] Creating/updating VM instance..."
 
 # Check if instance exists
 if gcloud compute instances describe "$INSTANCE_NAME" --zone="$GCP_ZONE" --project="$GCP_PROJECT" &>/dev/null; then
-    echo "Instance $INSTANCE_NAME exists. Delete it first if you want to recreate:"
-    echo "  gcloud compute instances delete $INSTANCE_NAME --zone=$GCP_ZONE --project=$GCP_PROJECT"
-    echo ""
-    echo "Or create a new instance with a different name:"
-    echo "  INSTANCE_NAME=ratsnest-vm-2 ./deploy-gcp.sh"
-else
-    echo "Creating TDX Confidential VM instance..."
-    gcloud compute instances create "$INSTANCE_NAME" \
-        --project="$GCP_PROJECT" \
-        --zone="$GCP_ZONE" \
-        --image="$GCP_IMAGE_NAME" \
-        --confidential-compute-type=TDX \
-        --machine-type="$MACHINE_TYPE" \
-        --maintenance-policy=TERMINATE \
-        --network-interface=nic-type=GVNIC,network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
-        --tags=ratsnest \
-        --no-restart-on-failure
-
-    echo "✓ Instance created: $INSTANCE_NAME"
-
-    # Get instance IP
-    EXTERNAL_IP=$(gcloud compute instances describe "$INSTANCE_NAME" \
-        --zone="$GCP_ZONE" \
-        --project="$GCP_PROJECT" \
-        --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-
-    echo ""
-    echo "=================================================="
-    echo "Deployment Complete!"
-    echo "=================================================="
-    echo ""
-    echo "VM Instance:      $INSTANCE_NAME"
-    echo "External IP:      $EXTERNAL_IP"
-    echo "Image:            $GCP_IMAGE_NAME"
-    echo "GCS Image:        $GCS_PATH"
-    echo ""
-    echo "The ratsnest service should start automatically."
-    echo "Test connection from your frontend at: http://$EXTERNAL_IP:3000"
-    echo ""
-    echo "View logs:"
-    echo "  gcloud compute ssh $INSTANCE_NAME --zone=$GCP_ZONE -- journalctl -u ratsnest -f"
-    echo ""
+    if [ "${REPLACE_VM:-false}" = "true" ]; then
+        echo "Instance $INSTANCE_NAME exists. Deleting (REPLACE_VM=true)..."
+        gcloud compute instances delete "$INSTANCE_NAME" \
+            --zone="$GCP_ZONE" \
+            --project="$GCP_PROJECT" \
+            --quiet
+        echo "✓ Instance deleted"
+    else
+        echo "Instance $INSTANCE_NAME exists. Skipping creation."
+        echo ""
+        echo "To replace the existing instance, run:"
+        echo "  REPLACE_VM=true ./deploy-gcp.sh"
+        echo ""
+        echo "Or create a new instance with a different name:"
+        echo "  INSTANCE_NAME=ratsnest-vm-2 ./deploy-gcp.sh"
+        exit 0
+    fi
 fi
+
+# Create instance (either new or after deletion)
+echo "Creating TDX Confidential VM instance..."
+gcloud compute instances create "$INSTANCE_NAME" \
+    --project="$GCP_PROJECT" \
+    --zone="$GCP_ZONE" \
+    --image="$GCP_IMAGE_NAME" \
+    --confidential-compute-type=TDX \
+    --machine-type="$MACHINE_TYPE" \
+    --maintenance-policy=TERMINATE \
+    --network-interface=nic-type=GVNIC,network-tier=PREMIUM,stack-type=IPV4_ONLY,subnet=default \
+    --tags=ratsnest \
+    --no-restart-on-failure
+
+echo "✓ Instance created: $INSTANCE_NAME"
+
+# Get instance IP
+EXTERNAL_IP=$(gcloud compute instances describe "$INSTANCE_NAME" \
+    --zone="$GCP_ZONE" \
+    --project="$GCP_PROJECT" \
+    --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+
+echo ""
+echo "=================================================="
+echo "Deployment Complete!"
+echo "=================================================="
+echo ""
+echo "VM Instance:      $INSTANCE_NAME"
+echo "External IP:      $EXTERNAL_IP"
+echo "Image:            $GCP_IMAGE_NAME"
+echo "GCS Image:        $GCS_PATH"
+echo ""
+echo "The ratsnest service should start automatically."
+echo "Test connection from your frontend at: http://$EXTERNAL_IP:3000"
+echo ""
+echo "View logs:"
+echo "  gcloud compute ssh $INSTANCE_NAME --zone=$GCP_ZONE -- journalctl -u ratsnest -f"
+echo ""

@@ -15,6 +15,10 @@ help:
 	@echo "  make dev-backend - Run backend in watch mode"
 	@echo "  make dev-frontend- Run frontend dev server"
 	@echo ""
+	@echo "Environment variables:"
+	@echo "  REPLACE_VM=true  - Delete and recreate VM during deploy"
+	@echo "                     Usage: REPLACE_VM=true make deploy"
+	@echo ""
 
 # Linting
 lint:
