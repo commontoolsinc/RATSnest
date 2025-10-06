@@ -62,7 +62,7 @@ async function main() {
   // Start Hono API server
   const honoApp = createHonoApp();
   console.log(`[Hono] Starting on http://localhost:${HONO_PORT}`);
-  const honoServer = Deno.serve({ port: HONO_PORT }, honoApp.fetch);
+  Deno.serve({ port: HONO_PORT }, honoApp.fetch);
 
   // Wait a moment for Hono to be ready
   await new Promise(resolve => setTimeout(resolve, 100));

@@ -4,7 +4,7 @@
 
 import { assertEquals } from "@std/assert";
 import { tappdV4Hex } from "./samples.ts";
-import { normalizeMRTD, isMRTDAllowed, policy } from "../shared/policy.ts";
+import { normalizeMRTD, isMRTDAllowed } from "../shared/policy.ts";
 
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.replace(/^0x/i, '');
@@ -65,10 +65,6 @@ Deno.test("normalizeMRTD - removes 0x prefix and lowercases", () => {
 });
 
 Deno.test("isMRTDAllowed - matches allowed MRTD regardless of casing/prefix", () => {
-  // Get real MRTD from sample quote
-  const quote = hexToBytes(tappdV4Hex);
-  const mrtd = extractMRTD(quote);
-
   // The sample quote's MRTD (from policy.ts)
   const sampleMrtd = "0x00000000000000000000001000000000e702060000000000c68518a0ebb42136c12b2275164f8c72f25fa9a343922286";
 
