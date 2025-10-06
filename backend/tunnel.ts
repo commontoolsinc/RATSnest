@@ -8,6 +8,15 @@ const HONO_PORT = 4000;
 const TUNNEL_PORT = 3000;
 const USE_REAL_TDX = Deno.env.get("USE_REAL_TDX") === "true";
 
+// Print startup banner
+console.log('');
+console.log('========================================');
+console.log('   RATSNEST TDX ATTESTATION SERVER');
+console.log('========================================');
+console.log(`TDX Mode: ${USE_REAL_TDX ? 'ENABLED (Real quotes)' : 'DISABLED (Sample quotes)'}`);
+console.log('========================================');
+console.log('');
+
 // Helper to convert hex to bytes
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.replace(/^0x/i, "");
@@ -39,13 +48,20 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
     // Phase 4: Real TDX quote generation
     try {
       const quote = await getTdxQuote(x25519PublicKey);
-      console.log(`[TunnelServer] Returning real TDX quote of length: ${quote.length}`);
+      console.log(`[TunnelServer] ✓ Successfully generated real TDX quote (${quote.length} bytes)`);
       previewQuote(quote, "Real TDX Quote");
       return { quote };
     } catch (err) {
-      console.error(`[TunnelServer] Failed to get real TDX quote:`, err);
-      console.log(`[TunnelServer] Falling back to sample quote`);
+      console.error(`[TunnelServer] ✗ Failed to get real TDX quote:`, err);
+      console.error(`[TunnelServer] Error details:`, {
+        name: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      console.log(`[TunnelServer] ⚠️  Falling back to sample quote (this means the MRTD will be from the sample, not your new image!)`);
     }
+  } else {
+    console.log(`[TunnelServer] USE_REAL_TDX not enabled, using sample quote`);
   }
 
   // Fallback: Sample TDX v4 quote
@@ -70,6 +86,9 @@ async function main() {
 
   // Create Express app for TunnelServer
   const app = express();
+
+  // Parse JSON request bodies
+  app.use(express.json());
 
   // Proxy all requests to the Hono backend
   app.use(async (req: Request, res: Response, next) => {

@@ -104,7 +104,20 @@ export async function getQuote(x25519PublicKey: Uint8Array): Promise<Uint8Array>
   // Step 3: Extract and log MRTD for policy configuration
   try {
     const mrtd = extractMRTD(quote);
-    console.log(`[TDX] MRTD (for policy.ts): ${mrtd}`);
+
+    // Print MRTD prominently for easy extraction from console logs
+    console.log('');
+    console.log('========================================');
+    console.log('   TDX ATTESTATION - MRTD VALUE');
+    console.log('========================================');
+    console.log('');
+    console.log(`MRTD: ${mrtd}`);
+    console.log('');
+    console.log('Update shared/policy.ts:');
+    console.log(`  allowed_mrtd: ["${mrtd}"]`);
+    console.log('');
+    console.log('========================================');
+    console.log('');
   } catch (err) {
     console.warn(`[TDX] Failed to extract MRTD:`, err);
   }

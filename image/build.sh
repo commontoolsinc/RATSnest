@@ -87,8 +87,17 @@ echo "✓ Measurements extracted to build/measurements.json"
 echo ""
 echo "[4/4] Extracting MRTD value..."
 
-# Extract MRTD from measurements.json (it's in the RTMR0 field)
-MRTD=$(jq -r '.rtmr0' "$PROJECT_ROOT/build/measurements.json" 2>/dev/null || echo "unknown")
+# Extract MRTD from measurements.json
+# For TDX, the MRTD is the measurement of the initial TD state
+# The measured-boot tool outputs TPM PCR values, so we use PCR4 which contains the UKI measurement
+# Note: The actual MRTD in the TDX quote may differ and should be verified at runtime
+MRTD=$(jq -r '.measurements["4"].expected' "$PROJECT_ROOT/build/measurements.json" 2>/dev/null)
+
+if [ -z "$MRTD" ] || [ "$MRTD" = "null" ]; then
+  echo "Warning: Could not extract MRTD from measurements.json"
+  echo "You will need to extract it from a real TDX quote at runtime"
+  MRTD="<extract from runtime TDX quote>"
+fi
 
 echo ""
 echo "=================================================="
@@ -98,9 +107,13 @@ echo ""
 echo "Image:        build/ratsnest-tdx.efi"
 echo "Measurements: build/measurements.json"
 echo ""
-echo "MRTD (RTMR0):"
-echo "  $MRTD"
+echo "MRTD (from PCR4 - UKI measurement):"
+echo "  0x$MRTD"
 echo ""
-echo "Update shared/policy.ts with this MRTD value:"
-echo "  allowed_mrtd: [\"$MRTD\"]"
+echo "⚠️  NOTE: This is the PCR4 value from the build measurements."
+echo "The actual MRTD in TDX quotes should be extracted at runtime."
+echo "Run the VM and check the backend logs for '[TDX] MRTD (for policy.ts): 0x...'"
+echo ""
+echo "Update shared/policy.ts with the runtime MRTD value:"
+echo "  allowed_mrtd: [\"0x$MRTD\"]"
 echo ""

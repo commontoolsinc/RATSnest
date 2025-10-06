@@ -208,52 +208,200 @@ function App() {
 
           {showDebug && debugData && (
             <div style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              background: '#1a1a1a',
-              borderRadius: '4px',
-              fontSize: '0.8em',
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              borderRadius: '8px',
+              border: '1px solid #0f3460',
+              fontSize: '0.85em',
               fontFamily: 'monospace'
             }}>
-              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1em' }}>Handshake Computation Details</h3>
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.2em',
+                color: '#e94560',
+                borderBottom: '2px solid #0f3460',
+                paddingBottom: '0.5rem'
+              }}>
+                🔐 TDX Handshake Computation
+              </h3>
 
               {debugData.error ? (
                 <p style={{ color: '#f44' }}>Error: {debugData.error}</p>
               ) : (
                 <>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Input Pubkey (32 bytes):</strong>
-                    <div style={{ wordBreak: 'break-all', color: '#4af' }}>
-                      {debugData.server_pubkey}
+                  {/* Step 1: Input */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        background: '#0f3460',
+                        color: '#4fc3f7',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        fontWeight: 'bold'
+                      }}>STEP 1</span>
+                      <strong style={{ color: '#4fc3f7' }}>X25519 Public Key (32 bytes)</strong>
+                    </div>
+                    <div style={{
+                      background: '#0f1419',
+                      padding: '0.75rem',
+                      borderRadius: '4px',
+                      border: '1px solid #4fc3f7',
+                      wordBreak: 'break-all',
+                      color: '#4fc3f7',
+                      lineHeight: '1.6',
+                      letterSpacing: '0.5px'
+                    }}>
+                      {debugData.server_pubkey?.match(/.{1,32}/g)?.join('\n')}
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: '#888', marginTop: '0.3rem' }}>
+                      📏 Length: {debugData.sizes?.pubkey_bytes} bytes ({debugData.sizes?.pubkey_bytes * 8} bits)
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>SHA-384 Digest (48 bytes):</strong>
-                    <div style={{ wordBreak: 'break-all', color: '#4f4' }}>
-                      {debugData.sha384_digest}
+                  {/* Arrow */}
+                  <div style={{
+                    textAlign: 'center',
+                    margin: '1rem 0',
+                    fontSize: '1.5em',
+                    color: '#e94560'
+                  }}>
+                    ↓ SHA-384(public_key)
+                  </div>
+
+                  {/* Step 2: Hash */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        background: '#0f3460',
+                        color: '#66bb6a',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        fontWeight: 'bold'
+                      }}>STEP 2</span>
+                      <strong style={{ color: '#66bb6a' }}>SHA-384 Digest (48 bytes)</strong>
+                    </div>
+                    <div style={{
+                      background: '#0f1419',
+                      padding: '0.75rem',
+                      borderRadius: '4px',
+                      border: '1px solid #66bb6a',
+                      wordBreak: 'break-all',
+                      color: '#66bb6a',
+                      lineHeight: '1.6',
+                      letterSpacing: '0.5px'
+                    }}>
+                      {debugData.sha384_digest?.match(/.{1,32}/g)?.join('\n')}
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: '#888', marginTop: '0.3rem' }}>
+                      📏 Length: {debugData.sizes?.sha384_bytes} bytes ({debugData.sizes?.sha384_bytes * 8} bits)
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Report Data (64 bytes: 48 hash + 16 zeros):</strong>
-                    <div style={{ wordBreak: 'break-all', color: '#fa4' }}>
-                      {debugData.report_data}
+                  {/* Arrow */}
+                  <div style={{
+                    textAlign: 'center',
+                    margin: '1rem 0',
+                    fontSize: '1.5em',
+                    color: '#e94560'
+                  }}>
+                    ↓ Pad digest with 16 zero bytes
+                  </div>
+
+                  {/* Step 3: Padded Result */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        background: '#0f3460',
+                        color: '#ffa726',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        fontWeight: 'bold'
+                      }}>STEP 3</span>
+                      <strong style={{ color: '#ffa726' }}>TDX Report Data (64 bytes)</strong>
+                    </div>
+                    <div style={{
+                      background: '#0f1419',
+                      padding: '0.75rem',
+                      borderRadius: '4px',
+                      border: '1px solid #ffa726',
+                      lineHeight: '1.6',
+                      letterSpacing: '0.5px'
+                    }}>
+                      <div style={{ color: '#66bb6a', wordBreak: 'break-all' }}>
+                        <span style={{ opacity: 0.7 }}>/* SHA-384 Hash (48 bytes) */</span><br/>
+                        {debugData.sha384_digest?.match(/.{1,32}/g)?.join('\n')}
+                      </div>
+                      <div style={{ color: '#666', wordBreak: 'break-all', marginTop: '0.5rem' }}>
+                        <span style={{ opacity: 0.7 }}>/* Zero Padding (16 bytes) */</span><br/>
+                        {debugData.report_data?.slice(-32)}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: '#888', marginTop: '0.3rem' }}>
+                      📏 Length: {debugData.sizes?.report_data_bytes} bytes ({debugData.sizes?.report_data_bytes * 8} bits)
+                      <br/>
+                      📦 Structure: 48 bytes (hash) + 16 bytes (zeros) = 64 bytes
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '1rem', padding: '0.5rem', background: '#2a2a2a', borderRadius: '4px' }}>
-                    <strong>Sizes:</strong>
-                    <ul style={{ margin: '0.25rem 0 0 1.5rem', padding: 0 }}>
-                      <li>Pubkey: {debugData.sizes?.pubkey_bytes} bytes</li>
-                      <li>SHA-384: {debugData.sizes?.sha384_bytes} bytes</li>
-                      <li>Report Data: {debugData.sizes?.report_data_bytes} bytes</li>
-                    </ul>
+                  {/* Summary box */}
+                  <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    background: 'rgba(233, 69, 96, 0.1)',
+                    borderRadius: '6px',
+                    border: '1px solid #e94560'
+                  }}>
+                    <div style={{ color: '#e94560', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                      ✨ Result
+                    </div>
+                    <p style={{ margin: '0', color: '#ccc', fontSize: '0.95em', lineHeight: '1.5' }}>
+                      This 64-byte <code style={{ background: '#0f3460', padding: '2px 6px', borderRadius: '3px' }}>report_data</code> gets embedded into the TDX quote during attestation.
+                      The quote proves that the server generated it while in possession of the X25519 private key,
+                      binding the encrypted tunnel to the hardware-attested TDX environment.
+                    </p>
                   </div>
 
-                  <p style={{ marginTop: '1rem', color: '#888', fontSize: '0.9em' }}>
-                    ℹ️ This shows how the X25519 pubkey is hashed with SHA-384 and padded to create the report_data that gets bound into the TDX quote.
-                  </p>
+                  {/* Technical details */}
+                  <details style={{ marginTop: '1rem', color: '#888' }}>
+                    <summary style={{ cursor: 'pointer', color: '#4fc3f7' }}>
+                      📊 Technical Details
+                    </summary>
+                    <div style={{
+                      marginTop: '0.5rem',
+                      padding: '0.75rem',
+                      background: '#0f1419',
+                      borderRadius: '4px',
+                      fontSize: '0.9em'
+                    }}>
+                      <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                        <li>Hash Algorithm: SHA-384 (SHA-2 family)</li>
+                        <li>Input: 32-byte Curve25519 public key</li>
+                        <li>Output: 48-byte digest (384 bits)</li>
+                        <li>Padding: 16 zero bytes (0x00...)</li>
+                        <li>Total: 64 bytes (required by TDX report_data)</li>
+                        <li>Encoding: Hexadecimal (2 chars per byte)</li>
+                      </ul>
+                    </div>
+                  </details>
                 </>
               )}
             </div>
