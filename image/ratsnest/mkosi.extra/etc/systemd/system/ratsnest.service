@@ -8,8 +8,8 @@ Type=simple
 ExecStart=/usr/bin/ratsnest
 Restart=always
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
+StandardOutput=journal+console
+StandardError=journal+console
 Environment=USE_REAL_TDX=true
 
 [Install]

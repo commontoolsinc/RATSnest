@@ -67,6 +67,22 @@ async function getQuoteViaConfigFS(reportData: Uint8Array): Promise<Uint8Array> 
  * 2. Use ConfigFS-TSM to generate TDX quote with reportdata
  * 3. Return the quote containing the bound public key hash
  */
+/**
+ * Extract MRTD from TDX quote for policy validation
+ * MRTD is 48 bytes located at offset 160 (48 header + 112 in body)
+ */
+function extractMRTD(quote: Uint8Array): string {
+  const MRTD_OFFSET = 160;
+  const MRTD_SIZE = 48;
+
+  if (quote.length < MRTD_OFFSET + MRTD_SIZE) {
+    throw new Error(`Quote too small: ${quote.length} bytes`);
+  }
+
+  const mrtd = quote.slice(MRTD_OFFSET, MRTD_OFFSET + MRTD_SIZE);
+  return '0x' + Array.from(mrtd).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function getQuote(x25519PublicKey: Uint8Array): Promise<Uint8Array> {
   console.log(`[TDX] Generating quote for pubkey length: ${x25519PublicKey.length}`);
 
@@ -77,6 +93,14 @@ export async function getQuote(x25519PublicKey: Uint8Array): Promise<Uint8Array>
   // Step 2: Generate TDX quote via ConfigFS-TSM
   const quote = await getQuoteViaConfigFS(reportData);
   console.log(`[TDX] Got TDX Quote: ${quote.length} bytes`);
+
+  // Step 3: Extract and log MRTD for policy configuration
+  try {
+    const mrtd = extractMRTD(quote);
+    console.log(`[TDX] MRTD (for policy.ts): ${mrtd}`);
+  } catch (err) {
+    console.warn(`[TDX] Failed to extract MRTD:`, err);
+  }
 
   return quote;
 }

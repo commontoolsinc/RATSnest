@@ -38,7 +38,7 @@ export const policy: MRTDPolicy = {
   allowed_mrtd: [
     // Sample MRTD for testing (from samples.ts TDX v4 quote)
     // Replace with real MRTD from image/build.sh output when building on TDX hardware
-    "0x00000000000000000000001000000000e702060000000000c68518a0ebb42136c12b2275164f8c72f25fa9a343922286"
+    "0xc5bf87009d9aaeb2a40633710b2edab43c0b0b8cbe5a036fa45b1057e7086b0726711d0c78ed5859f12b0d76978df03c"
   ],
   min_tcb_version: "1.0"
 }
