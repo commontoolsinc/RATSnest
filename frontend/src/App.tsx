@@ -206,6 +206,7 @@ function App() {
   const [showDebug, setShowDebug] = useState(false)
   const [imaData, setImaData] = useState<any>(null)
   const [showIma, setShowIma] = useState(false)
+  const [helloLoading, setHelloLoading] = useState(false)
   const initializedRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -293,6 +294,31 @@ function App() {
     }
   }
 
+  const sendHelloRequest = async () => {
+    setHelloLoading(true)
+    setError('')
+    try {
+      console.log('[Demo] Sending /api/hello request through encrypted tunnel...')
+      const startTime = performance.now()
+
+      const response = await enc.fetch(baseUrl + '/api/hello')
+      const data = await response.json()
+
+      const endTime = performance.now()
+      const duration = Math.round(endTime - startTime)
+
+      console.log('[Demo] ✓ Received response:', data)
+      console.log('[Demo] Round-trip time:', duration + 'ms')
+
+      setMessage(data.message + ` (${duration}ms)`)
+    } catch (err) {
+      console.error('[Demo] Error:', err)
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setHelloLoading(false)
+    }
+  }
+
   const hasPolicyConfigured = effectivePolicy.allowed_mrtd.length > 0
   const usingQueryMrtd = queryMrtd !== null
   const usingQueryBackend = queryBackend !== null
@@ -341,6 +367,23 @@ function App() {
         {/* Debug Panel */}
         <div style={{ marginTop: '2rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={sendHelloRequest}
+              disabled={helloLoading}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.9em',
+                cursor: helloLoading ? 'wait' : 'pointer',
+                background: helloLoading ? '#2a2a2a' : '#4caf50',
+                color: '#fff',
+                border: '1px solid #666',
+                borderRadius: '4px',
+                opacity: helloLoading ? 0.6 : 1
+              }}
+            >
+              {helloLoading ? '⏳ Sending...' : '📨 Send Hello Request'}
+            </button>
+
             <button
               onClick={testHandshakeBytes}
               style={{
