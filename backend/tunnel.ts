@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from "express";
 import { TunnelServer, type QuoteData } from "@teekit/tunnel";
 import { getQuote as getTdxQuote } from "./tdx.ts";
+import { getIMALogBytes, getIMACount, displayKeyMeasurements } from "./ima.ts";
 import { createHonoApp } from "./main.ts";
 
 const HONO_PORT = 4000;
@@ -49,7 +50,22 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] ✓ Successfully generated real TDX quote (${quote.length} bytes)`);
   previewQuote(quote, "Real TDX Quote");
 
-  return { quote };
+  // Include IMA runtime measurements in attestation
+  console.log(`[TunnelServer] Reading IMA measurements...`);
+  try {
+    const imaLogBytes = await getIMALogBytes();
+    const imaCount = await getIMACount();
+    console.log(`[TunnelServer] ✓ IMA log included: ${imaCount} measurements (${imaLogBytes.length} bytes)`);
+
+    return {
+      quote,
+      runtime_data: imaLogBytes
+    };
+  } catch (error) {
+    console.warn(`[TunnelServer] ⚠ IMA log not available: ${error}`);
+    console.warn(`[TunnelServer] Continuing without IMA measurements`);
+    return { quote };
+  }
 }
 
 async function main() {
@@ -121,9 +137,19 @@ async function main() {
   const tunnelServer = await TunnelServer.initialize(app, getQuote);
 
   // Start listening
-  tunnelServer.server.listen(TUNNEL_PORT, () => {
+  tunnelServer.server.listen(TUNNEL_PORT, async () => {
     console.log(`[TunnelServer] Running on http://localhost:${TUNNEL_PORT}`);
     console.log(`[TunnelServer] Proxying to Hono backend at http://localhost:${HONO_PORT}`);
+
+    // Display IMA measurements for easy policy configuration
+    // Wait a moment for the first quote to be generated and IMA log to be ready
+    setTimeout(async () => {
+      try {
+        await displayKeyMeasurements();
+      } catch (error) {
+        console.error('[TunnelServer] Failed to display IMA measurements:', error);
+      }
+    }, 2000); // Wait 2 seconds for system to stabilize
   });
 }
 
