@@ -42,8 +42,9 @@ if (queryMrtd) {
 }
 
 // Custom quote verification function
-// Note: TunnelClient passes the already-parsed quote object and runtime_data
-async function verifyTdxQuote(quote: any, runtime_data?: Uint8Array): Promise<boolean> {
+// Note: TunnelClient only passes the parsed quote (not runtime_data)
+// We fetch the IMA log separately via the API
+async function verifyTdxQuote(quote: any): Promise<boolean> {
   try {
     console.log('[Verify] Verifying TDX quote...')
     console.log('[Verify] Quote version:', quote.header.version)
@@ -65,13 +66,21 @@ async function verifyTdxQuote(quote: any, runtime_data?: Uint8Array): Promise<bo
     console.log('[Verify]   RTMR2:', rtmr2)
     console.log('[Verify]   RTMR3:', rtmr3)
 
-    // Parse IMA log from runtime_data if available
+    // Fetch IMA log for verification
+    // Note: TunnelClient doesn't pass runtime_data to customVerifyQuote
+    // So we fetch it via the API endpoint
     let imaLog: string | undefined
-    if (runtime_data && runtime_data.length > 0) {
-      imaLog = new TextDecoder().decode(runtime_data)
-      console.log('[Verify] IMA log received:', imaLog.length, 'bytes')
-    } else {
-      console.log('[Verify] No IMA log in runtime_data')
+    try {
+      console.log('[Verify] Fetching IMA log for verification...')
+      const response = await fetch(baseUrl + '/api/ima/log')
+      if (response.ok) {
+        imaLog = await response.text()
+        console.log('[Verify] IMA log fetched:', imaLog.length, 'bytes')
+      } else {
+        console.warn('[Verify] Failed to fetch IMA log:', response.status)
+      }
+    } catch (err) {
+      console.warn('[Verify] Could not fetch IMA log:', err)
     }
 
     // Verify all measurements (MRTD + RTMRs + IMA) against policy
