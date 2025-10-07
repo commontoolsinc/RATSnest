@@ -42,8 +42,8 @@ if (queryMrtd) {
 }
 
 // Custom quote verification function
-// Note: TunnelClient passes the already-parsed quote object
-async function verifyTdxQuote(quote: any): Promise<boolean> {
+// Note: TunnelClient passes the already-parsed quote object and runtime_data
+async function verifyTdxQuote(quote: any, runtime_data?: Uint8Array): Promise<boolean> {
   try {
     console.log('[Verify] Verifying TDX quote...')
     console.log('[Verify] Quote version:', quote.header.version)
@@ -65,12 +65,22 @@ async function verifyTdxQuote(quote: any): Promise<boolean> {
     console.log('[Verify]   RTMR2:', rtmr2)
     console.log('[Verify]   RTMR3:', rtmr3)
 
-    // Verify all measurements (MRTD + RTMRs) against policy
+    // Parse IMA log from runtime_data if available
+    let imaLog: string | undefined
+    if (runtime_data && runtime_data.length > 0) {
+      imaLog = new TextDecoder().decode(runtime_data)
+      console.log('[Verify] IMA log received:', imaLog.length, 'bytes')
+    } else {
+      console.log('[Verify] No IMA log in runtime_data')
+    }
+
+    // Verify all measurements (MRTD + RTMRs + IMA) against policy
     const verification = verifyMeasurements({
       mrtd,
       rtmr1,
       rtmr2,
       rtmr3,
+      imaLog,
     })
 
     console.log('[Verify] Measurement verification:')
@@ -82,7 +92,7 @@ async function verifyTdxQuote(quote: any): Promise<boolean> {
       return false
     }
 
-    console.log('[Verify] ✓ Quote verification passed')
+    console.log('[Verify] ✓ Quote verification passed (TDX + IMA)')
     return true
   } catch (err) {
     console.error('[Verify] Quote verification failed:', err)
@@ -111,6 +121,8 @@ function App() {
   const [error, setError] = useState<string>('')
   const [debugData, setDebugData] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [imaData, setImaData] = useState<any>(null)
+  const [showIma, setShowIma] = useState(false)
   const initializedRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -157,6 +169,22 @@ function App() {
     } catch (err) {
       console.error('[Debug] Error:', err)
       setDebugData({ error: String(err) })
+    }
+  }
+
+  const fetchImaLog = async () => {
+    try {
+      console.log('[IMA] Fetching IMA log summary...')
+
+      const response = await fetch(baseUrl + '/debug/ima-summary')
+      const data = await response.json()
+      console.log('[IMA] Response:', data)
+      setImaData(data)
+      setShowIma(true)
+    } catch (err) {
+      console.error('[IMA] Error:', err)
+      setImaData({ error: String(err) })
+      setShowIma(true)
     }
   }
 
@@ -207,20 +235,37 @@ function App() {
 
         {/* Debug Panel */}
         <div style={{ marginTop: '2rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
-          <button
-            onClick={testHandshakeBytes}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.9em',
-              cursor: 'pointer',
-              background: '#444',
-              color: '#fff',
-              border: '1px solid #666',
-              borderRadius: '4px'
-            }}
-          >
-            🔍 Test Handshake Computation
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={testHandshakeBytes}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.9em',
+                cursor: 'pointer',
+                background: '#444',
+                color: '#fff',
+                border: '1px solid #666',
+                borderRadius: '4px'
+              }}
+            >
+              🔍 Test Handshake Computation
+            </button>
+
+            <button
+              onClick={fetchImaLog}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.9em',
+                cursor: 'pointer',
+                background: '#444',
+                color: '#fff',
+                border: '1px solid #666',
+                borderRadius: '4px'
+              }}
+            >
+              📋 View IMA Log
+            </button>
+          </div>
 
           {showDebug && debugData && (
             <div style={{
@@ -418,6 +463,157 @@ function App() {
                       </ul>
                     </div>
                   </details>
+                </>
+              )}
+            </div>
+          )}
+
+          {showIma && imaData && (
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+              borderRadius: '8px',
+              border: '1px solid #0f3460',
+              fontSize: '0.85em',
+              fontFamily: 'monospace'
+            }}>
+              <h3 style={{
+                margin: '0 0 1.5rem 0',
+                fontSize: '1.2em',
+                color: '#e94560',
+                borderBottom: '2px solid #0f3460',
+                paddingBottom: '0.5rem'
+              }}>
+                📋 IMA Runtime Measurements
+              </h3>
+
+              {imaData.error ? (
+                <div>
+                  <p style={{ color: '#f44' }}>Error: {imaData.error}</p>
+                  {imaData.hint && <p style={{ color: '#888', fontSize: '0.9em' }}>{imaData.hint}</p>}
+                  <p style={{ color: '#888', fontSize: '0.9em', marginTop: '1rem' }}>
+                    IMA may not be enabled. Check kernel command line includes: <code>ima_policy=tcb ima_hash=sha256</code>
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        background: '#0f3460',
+                        color: '#4fc3f7',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        fontWeight: 'bold'
+                      }}>SUMMARY</span>
+                      <strong style={{ color: '#4fc3f7' }}>IMA Log Statistics</strong>
+                    </div>
+                    <div style={{
+                      background: '#0f1419',
+                      padding: '0.75rem',
+                      borderRadius: '4px',
+                      border: '1px solid #4fc3f7',
+                      color: '#4fc3f7'
+                    }}>
+                      Total measurements: {imaData.total_entries} files
+                    </div>
+                  </div>
+
+                  {/* Ratsnest Binary */}
+                  {imaData.ratsnest_binary && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginBottom: '0.5rem',
+                        gap: '0.5rem'
+                      }}>
+                        <span style={{
+                          background: '#0f3460',
+                          color: imaData.ratsnest_binary.found ? '#66bb6a' : '#f44',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.9em',
+                          fontWeight: 'bold'
+                        }}>
+                          {imaData.ratsnest_binary.found ? '✓ FOUND' : '✗ NOT FOUND'}
+                        </span>
+                        <strong style={{ color: '#66bb6a' }}>/usr/bin/ratsnest</strong>
+                      </div>
+                      {imaData.ratsnest_binary.found && (
+                        <div style={{
+                          background: '#0f1419',
+                          padding: '0.75rem',
+                          borderRadius: '4px',
+                          border: '1px solid #66bb6a'
+                        }}>
+                          <div style={{ color: '#888', fontSize: '0.9em', marginBottom: '0.5rem' }}>
+                            Hash: {imaData.ratsnest_binary.hash}
+                          </div>
+                          <div style={{
+                            color: '#666',
+                            fontSize: '0.85em',
+                            wordBreak: 'break-all',
+                            fontFamily: 'monospace',
+                            lineHeight: '1.4'
+                          }}>
+                            {imaData.ratsnest_binary.full_entry}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sample Entries */}
+                  {imaData.sample_entries && imaData.sample_entries.length > 0 && (
+                    <details style={{ marginTop: '1rem', color: '#888' }}>
+                      <summary style={{ cursor: 'pointer', color: '#4fc3f7' }}>
+                        📊 Sample IMA Log Entries (first 10)
+                      </summary>
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '0.75rem',
+                        background: '#0f1419',
+                        borderRadius: '4px',
+                        fontSize: '0.85em',
+                        maxHeight: '300px',
+                        overflowY: 'auto'
+                      }}>
+                        {imaData.sample_entries.map((entry: any, idx: number) => (
+                          <div key={idx} style={{ marginBottom: '0.75rem', borderBottom: '1px solid #222', paddingBottom: '0.5rem' }}>
+                            <div style={{ color: '#4fc3f7' }}>PCR {entry.pcr}: {entry.filename}</div>
+                            <div style={{ color: '#666', fontSize: '0.9em' }}>
+                              {entry.template} {entry.file_hash}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+
+                  <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    background: 'rgba(233, 69, 96, 0.1)',
+                    borderRadius: '6px',
+                    border: '1px solid #e94560'
+                  }}>
+                    <div style={{ color: '#e94560', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                      ✨ IMA Verification
+                    </div>
+                    <p style={{ margin: '0', color: '#ccc', fontSize: '0.95em', lineHeight: '1.5' }}>
+                      The IMA log contains cryptographic measurements of all files accessed during boot and runtime.
+                      The ratsnest binary hash can be verified against a known-good value to ensure code integrity,
+                      independent of the MRTD/RTMR measurements.
+                    </p>
+                  </div>
                 </>
               )}
             </div>

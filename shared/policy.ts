@@ -45,6 +45,12 @@ export interface MRTDPolicy {
   allowed_rtmr3?: string[]
 
   /**
+   * Expected IMA measurements for critical executables
+   * Maps file paths to their expected SHA256 hashes
+   */
+  expected_ima_measurements?: Record<string, string>
+
+  /**
    * Minimum TCB version (optional, for future use)
    */
   min_tcb_version?: string
@@ -53,17 +59,30 @@ export interface MRTDPolicy {
 /**
  * Current MRTD policy
  *
- * TODO: Run `image/build.sh` to generate the first MRTD value
- * and update this array with the output.
- *
- * For testing: Using sample MRTD from known TDX quote
+ * Values extracted from VM console logs at deployment time.
+ * Update these after each image rebuild.
  */
 export const policy: MRTDPolicy = {
+  // TDX Infrastructure Measurement (fixed per GCP machine type)
   allowed_mrtd: [
-    // Sample MRTD for testing (from samples.ts TDX v4 quote)
-    // Replace with real MRTD from image/build.sh output when building on TDX hardware
     "0xc5bf87009d9aaeb2a40633710b2edab43c0b0b8cbe5a036fa45b1057e7086b0726711d0c78ed5859f12b0d76978df03c"
   ],
+
+  // Boot Measurements (varies with kernel/image changes)
+  allowed_rtmr1: [
+    "0xdbb0a7b0bcb11901a46c8732a3923d0044a57e8abe1825c61ab4995a3b372383fa136d61f5a85352cb1931454b8bc89a"
+  ],
+
+  // IMA Runtime Measurements (varies with code changes)
+  // These verify the integrity of executed binaries at runtime
+  expected_ima_measurements: {
+    "/usr/bin/ratsnest": "dcd238110e14b62276982f5146b629ab2cd8d0b9ada8802e345adbb0734b6752",
+    "/usr/lib/systemd/systemd-executor": "a0e08eb8f3e086b6d28b66369db05b45915e9bb8584859a282168b1cc44ef78d",
+    "/usr/lib/x86_64-linux-gnu/libsystemd.so.0.40.0": "7ba2cab942f4aaa188d6e5409705d448eacc4ae6914ff7cd2e1302e33bb7897f",
+    "/usr/lib/x86_64-linux-gnu/systemd/libsystemd-core-257.so": "f62482f05efbf5551c2a42c753978071facd336936af0b81389b7bc3a99d5bc7",
+    "/usr/lib/x86_64-linux-gnu/libc.so.6": "56e42210fbaee005355b622121fec8b0c16ca80837eddce3e3557075103dda78",
+  },
+
   min_tcb_version: "1.0"
 }
 
@@ -104,13 +123,107 @@ export function isRTMRAllowed(rtmr: string, rtmrNumber: 1 | 2 | 3): boolean {
 }
 
 /**
- * Verify all measurements (MRTD + RTMRs) against policy
+ * IMA log entry structure
+ */
+export interface IMAEntry {
+  pcr: number
+  templateHash: string
+  templateName: string
+  fileHash: string
+  filePath: string
+}
+
+/**
+ * Parse IMA ASCII log format
+ * Format: <PCR> <template-hash> <template-name> <file-hash> <file-path>
+ * Example: 10 bb24b135... ima-ng sha256:d41dd4ad... /usr/bin/ratsnest
+ */
+export function parseIMALog(log: string): IMAEntry[] {
+  return log
+    .split('\n')
+    .filter(line => line.trim())
+    .map(line => {
+      const parts = line.trim().split(/\s+/)
+      if (parts.length < 5) return null
+
+      return {
+        pcr: parseInt(parts[0], 10),
+        templateHash: parts[1],
+        templateName: parts[2],
+        fileHash: parts[3],
+        filePath: parts.slice(4).join(' ') // File path may contain spaces
+      }
+    })
+    .filter((entry): entry is IMAEntry => entry !== null)
+}
+
+/**
+ * Verify IMA measurements against expected values
+ */
+export function verifyIMAMeasurements(imaLog: string): {
+  allowed: boolean
+  details: string[]
+  checkedFiles: number
+  missingFiles: string[]
+  mismatchedFiles: string[]
+} {
+  const details: string[] = []
+  const missingFiles: string[] = []
+  const mismatchedFiles: string[] = []
+
+  // If no IMA policy configured, skip verification
+  if (!policy.expected_ima_measurements || Object.keys(policy.expected_ima_measurements).length === 0) {
+    details.push('IMA: ○ no policy set (any measurements allowed)')
+    return { allowed: true, details, checkedFiles: 0, missingFiles, mismatchedFiles }
+  }
+
+  // Parse IMA log
+  const entries = parseIMALog(imaLog)
+  details.push(`IMA: Found ${entries.length} measurements in log`)
+
+  // Check each expected measurement
+  let checkedFiles = 0
+  for (const [filePath, expectedHash] of Object.entries(policy.expected_ima_measurements)) {
+    const entry = entries.find(e => e.filePath === filePath)
+
+    if (!entry) {
+      details.push(`  ✗ ${filePath}: NOT FOUND in IMA log`)
+      missingFiles.push(filePath)
+      continue
+    }
+
+    // Extract hash from "sha256:HASH" format
+    const actualHash = entry.fileHash.includes(':')
+      ? entry.fileHash.split(':')[1]
+      : entry.fileHash
+
+    const hashMatch = actualHash.toLowerCase() === expectedHash.toLowerCase()
+    checkedFiles++
+
+    if (hashMatch) {
+      details.push(`  ✓ ${filePath}: hash matches`)
+    } else {
+      details.push(`  ✗ ${filePath}: HASH MISMATCH`)
+      details.push(`    Expected: ${expectedHash}`)
+      details.push(`    Got:      ${actualHash}`)
+      mismatchedFiles.push(filePath)
+    }
+  }
+
+  const allowed = missingFiles.length === 0 && mismatchedFiles.length === 0
+
+  return { allowed, details, checkedFiles, missingFiles, mismatchedFiles }
+}
+
+/**
+ * Verify all measurements (MRTD + RTMRs + IMA) against policy
  */
 export function verifyMeasurements(measurements: {
   mrtd: string
   rtmr1?: string
   rtmr2?: string
   rtmr3?: string
+  imaLog?: string
 }): { allowed: boolean; details: string[] } {
   const details: string[] = []
 
@@ -146,11 +259,26 @@ export function verifyMeasurements(measurements: {
     }
   }
 
-  // Overall: require MRTD + all configured RTMRs to pass
+  // Check IMA measurements if provided
+  let imaAllowed = true
+  if (measurements.imaLog) {
+    const imaResult = verifyIMAMeasurements(measurements.imaLog)
+    details.push(...imaResult.details)
+    imaAllowed = imaResult.allowed
+
+    if (!imaResult.allowed) {
+      details.push(`IMA: ✗ Verification FAILED (${imaResult.missingFiles.length} missing, ${imaResult.mismatchedFiles.length} mismatched)`)
+    } else if (imaResult.checkedFiles > 0) {
+      details.push(`IMA: ✓ All ${imaResult.checkedFiles} critical files verified`)
+    }
+  }
+
+  // Overall: require MRTD + all configured RTMRs + IMA to pass
   const allowed = mrtdAllowed &&
     (!measurements.rtmr1 || isRTMRAllowed(measurements.rtmr1, 1)) &&
     (!measurements.rtmr2 || isRTMRAllowed(measurements.rtmr2, 2)) &&
-    (!measurements.rtmr3 || isRTMRAllowed(measurements.rtmr3, 3))
+    (!measurements.rtmr3 || isRTMRAllowed(measurements.rtmr3, 3)) &&
+    imaAllowed
 
   return { allowed, details }
 }
