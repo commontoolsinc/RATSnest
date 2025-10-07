@@ -1,7 +1,6 @@
 import express, { type Request, type Response } from "express";
 import { TunnelServer, type QuoteData } from "@teekit/tunnel";
 import { getQuote as getTdxQuote } from "./tdx.ts";
-import { tappdV4Hex } from "./samples.ts";
 import { createHonoApp } from "./main.ts";
 
 const HONO_PORT = 4000;
@@ -13,19 +12,13 @@ console.log('');
 console.log('========================================');
 console.log('   RATSNEST TDX ATTESTATION SERVER');
 console.log('========================================');
-console.log(`TDX Mode: ${USE_REAL_TDX ? 'ENABLED (Real quotes)' : 'DISABLED (Sample quotes)'}`);
+console.log(`TDX Mode: ${USE_REAL_TDX ? 'ENABLED (Real quotes only)' : 'DISABLED - SERVER WILL FAIL'}`);
+if (!USE_REAL_TDX) {
+  console.error('⚠️  WARNING: USE_REAL_TDX is not enabled. Quote generation will fail.');
+  console.error('⚠️  Set USE_REAL_TDX=true to enable TDX attestation.');
+}
 console.log('========================================');
 console.log('');
-
-// Helper to convert hex to bytes
-function hexToBytes(hex: string): Uint8Array {
-  const clean = hex.replace(/^0x/i, "");
-  const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < clean.length; i += 2) {
-    bytes[i / 2] = parseInt(clean.substring(i, i + 2), 16);
-  }
-  return bytes;
-}
 
 // Helper to preview quote bytes
 function previewQuote(quote: Uint8Array, label: string) {
@@ -36,7 +29,7 @@ function previewQuote(quote: Uint8Array, label: string) {
   console.log(`  ${preview}...`);
 }
 
-// Get quote function - uses real TDX if enabled, otherwise sample quote
+// Get quote function - only uses real TDX (no fallback)
 async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   console.log(`[TunnelServer] getQuote called with pubkey length: ${x25519PublicKey.length}`);
 
@@ -44,34 +37,19 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
   const pubkeyHex = Array.from(x25519PublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
   console.log(`[Handshake Debug] Server received client pubkey: ${pubkeyHex}`);
 
-  if (USE_REAL_TDX) {
-    // Phase 4: Real TDX quote generation
-    try {
-      const quote = await getTdxQuote(x25519PublicKey);
-      console.log(`[TunnelServer] ✓ Successfully generated real TDX quote (${quote.length} bytes)`);
-      previewQuote(quote, "Real TDX Quote");
-      return { quote };
-    } catch (err) {
-      console.error(`[TunnelServer] ✗ Failed to get real TDX quote:`, err);
-      console.error(`[TunnelServer] Error details:`, {
-        name: err instanceof Error ? err.name : 'Unknown',
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
-      });
-      console.log(`[TunnelServer] ⚠️  Falling back to sample quote (this means the MRTD will be from the sample, not your new image!)`);
-    }
-  } else {
-    console.log(`[TunnelServer] USE_REAL_TDX not enabled, using sample quote`);
+  if (!USE_REAL_TDX) {
+    const error = new Error('USE_REAL_TDX is not enabled. This server requires TDX attestation.');
+    console.error(`[TunnelServer] ✗ ${error.message}`);
+    throw error;
   }
 
-  // Fallback: Sample TDX v4 quote
-  const sampleQuote = hexToBytes(tappdV4Hex);
-  console.log(`[TunnelServer] Returning sample TDX v4 quote of length: ${sampleQuote.length}`);
-  previewQuote(sampleQuote, "Sample TDX Quote");
+  // Real TDX quote generation (no fallback)
+  console.log(`[TunnelServer] Generating real TDX quote...`);
+  const quote = await getTdxQuote(x25519PublicKey);
+  console.log(`[TunnelServer] ✓ Successfully generated real TDX quote (${quote.length} bytes)`);
+  previewQuote(quote, "Real TDX Quote");
 
-  return {
-    quote: sampleQuote,
-  };
+  return { quote };
 }
 
 async function main() {

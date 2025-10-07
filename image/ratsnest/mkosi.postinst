@@ -16,8 +16,32 @@ ln -sf /etc/systemd/system/network-setup.service \
 ln -sf /etc/systemd/system/ratsnest.service \
     "$BUILDROOT/etc/systemd/system/minimal.target.wants/ratsnest.service"
 
+# Enable SSH service
+ln -sf /lib/systemd/system/ssh.service \
+    "$BUILDROOT/etc/systemd/system/minimal.target.wants/ssh.service"
+
 # Set default target to minimal.target
 ln -sf /lib/systemd/system/minimal.target \
     "$BUILDROOT/etc/systemd/system/default.target"
 
-echo "[PostInst] Network and Ratsnest services enabled and set as default target"
+# Setup SSH access for root user
+mkdir -p "$BUILDROOT/root/.ssh"
+chmod 700 "$BUILDROOT/root/.ssh"
+
+# Add SSH public key
+cat > "$BUILDROOT/root/.ssh/authorized_keys" <<'EOF'
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH+oDdesiFmA7WVm2L0V6A8YJ1tPRGifaA6CdR+K0jHo jake@common.tools
+EOF
+
+chmod 600 "$BUILDROOT/root/.ssh/authorized_keys"
+
+# Configure SSH to allow root login
+mkdir -p "$BUILDROOT/etc/ssh/sshd_config.d"
+cat > "$BUILDROOT/etc/ssh/sshd_config.d/99-ratsnest.conf" <<'EOF'
+# Allow root login for debugging
+PermitRootLogin yes
+PasswordAuthentication no
+PubkeyAuthentication yes
+EOF
+
+echo "[PostInst] Network, Ratsnest, and SSH services enabled"

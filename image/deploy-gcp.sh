@@ -89,6 +89,19 @@ else
     echo "✓ Firewall rule created: allow-ratsnest-3000"
 fi
 
+# Create firewall rule for SSH (port 22)
+if gcloud compute firewall-rules describe allow-ratsnest-ssh --project="$GCP_PROJECT" &>/dev/null; then
+    echo "✓ Firewall rule allow-ratsnest-ssh exists"
+else
+    gcloud compute firewall-rules create allow-ratsnest-ssh \
+        --project="$GCP_PROJECT" \
+        --allow=tcp:22 \
+        --source-ranges=0.0.0.0/0 \
+        --target-tags=ratsnest \
+        --description="Allow SSH access to Ratsnest VMs"
+    echo "✓ Firewall rule created: allow-ratsnest-ssh"
+fi
+
 # Step 5: Create/Update VM Instance
 echo ""
 echo "[5/6] Creating/updating VM instance..."

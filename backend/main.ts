@@ -36,6 +36,7 @@ export function createHonoApp() {
     : "../frontend/dist";
 
   console.log(`Static files root: ${staticRoot} (compiled: ${isCompiled})`);
+  console.log(`[Build] Test modification v3 - RTMR variability test`);
 
   // Static file serving for SPA
   app.get("*", serveStatic({ root: staticRoot }));

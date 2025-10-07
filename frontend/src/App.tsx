@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { TunnelClient } from '@teekit/tunnel'
-import { policy } from '../../shared/policy'
+import { policy, verifyMeasurements } from '../../shared/policy'
 import './App.css'
 
 // Parse query parameters
@@ -53,16 +53,32 @@ async function verifyTdxQuote(quote: any): Promise<boolean> {
     const mrtd = bytesToHex(quote.body.mr_td)
     console.log('[Verify] MRTD from quote:', mrtd)
 
-    // Check MRTD against effective policy (query param or default)
-    const normalizedMrtd = mrtd.replace(/^0x/i, '').toLowerCase()
-    const allowed = effectivePolicy.allowed_mrtd.some(
-      allowed => allowed.replace(/^0x/i, '').toLowerCase() === normalizedMrtd
-    )
-    console.log('[Verify] MRTD allowed by policy:', allowed)
-    console.log('[Verify] Policy allows:', effectivePolicy.allowed_mrtd)
+    // Extract RTMRs from quote body
+    const rtmr0 = bytesToHex(quote.body.rtmr0)
+    const rtmr1 = bytesToHex(quote.body.rtmr1)
+    const rtmr2 = bytesToHex(quote.body.rtmr2)
+    const rtmr3 = bytesToHex(quote.body.rtmr3)
 
-    if (!allowed) {
-      console.error('[Verify] MRTD not in allowed list!')
+    console.log('[Verify] RTMRs from quote:')
+    console.log('[Verify]   RTMR0:', rtmr0)
+    console.log('[Verify]   RTMR1:', rtmr1)
+    console.log('[Verify]   RTMR2:', rtmr2)
+    console.log('[Verify]   RTMR3:', rtmr3)
+
+    // Verify all measurements (MRTD + RTMRs) against policy
+    const verification = verifyMeasurements({
+      mrtd,
+      rtmr1,
+      rtmr2,
+      rtmr3,
+    })
+
+    console.log('[Verify] Measurement verification:')
+    verification.details.forEach(detail => console.log(`[Verify]   ${detail}`))
+    console.log('[Verify] Overall result:', verification.allowed ? '✓ ALLOWED' : '✗ DENIED')
+
+    if (!verification.allowed) {
+      console.error('[Verify] Measurements not allowed by policy!')
       return false
     }
 
