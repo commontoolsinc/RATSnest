@@ -1,8 +1,11 @@
 import express, { type Request, type Response } from "express";
-import { TunnelServer, type QuoteData } from "@teekit/tunnel";
+import { TunnelServer, type QuoteData, type VerifierData } from "@teekit/tunnel";
 import { getQuote as getTdxQuote } from "./tdx.ts";
 import { getIMALogBytes, getIMACount, displayKeyMeasurements } from "./ima.ts";
 import { createHonoApp } from "./main.ts";
+
+// @ts-ignore - Import from Deno namespace
+const crypto = globalThis.crypto;
 
 const HONO_PORT = 4000;
 const TUNNEL_PORT = 3000;
@@ -36,7 +39,7 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
 
   // Debug: Log handshake details for verification
   const pubkeyHex = Array.from(x25519PublicKey).map(b => b.toString(16).padStart(2, '0')).join('');
-  console.log(`[Handshake Debug] Server received client pubkey: ${pubkeyHex}`);
+  console.log(`[Handshake Debug] Server X25519 pubkey: ${pubkeyHex}`);
 
   if (!USE_REAL_TDX) {
     const error = new Error('USE_REAL_TDX is not enabled. This server requires TDX attestation.');
@@ -44,9 +47,37 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
     throw error;
   }
 
-  // Real TDX quote generation (no fallback)
+  // Generate verifier data (nonce + iat) for binding
+  // TEE-Kit expects: report_data = SHA-512(nonce || iat || x25519_pubkey)
+  const nonce = crypto.getRandomValues(new Uint8Array(32)); // 32-byte random nonce
+  const iat = new Uint8Array(8); // 8-byte timestamp
+  const now = BigInt(Date.now());
+  new DataView(iat.buffer).setBigUint64(0, now, false); // Big-endian timestamp
+
+  const verifierData: VerifierData = {
+    val: nonce,
+    iat: iat
+  };
+
+  console.log(`[TunnelServer] Generated verifier data:`);
+  console.log(`  nonce: ${Array.from(nonce.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('')}... (32 bytes)`);
+  console.log(`  iat: ${now.toString()} (${iat.length} bytes)`);
+
+  // Compute report_data = SHA-512(nonce || iat || x25519_pubkey)
+  const combined = new Uint8Array(nonce.length + iat.length + x25519PublicKey.length);
+  combined.set(nonce, 0);
+  combined.set(iat, nonce.length);
+  combined.set(x25519PublicKey, nonce.length + iat.length);
+
+  const reportDataHash = await crypto.subtle.digest("SHA-512", combined);
+  const reportData = new Uint8Array(reportDataHash);
+
+  console.log(`[Handshake Debug] SHA-512(nonce || iat || pubkey):`);
+  console.log(`  ${Array.from(reportData).map(b => b.toString(16).padStart(2, '0')).join('')}`);
+
+  // Real TDX quote generation with computed report_data
   console.log(`[TunnelServer] Generating real TDX quote...`);
-  const quote = await getTdxQuote(x25519PublicKey);
+  const quote = await getTdxQuote(reportData);
   console.log(`[TunnelServer] ✓ Successfully generated real TDX quote (${quote.length} bytes)`);
   previewQuote(quote, "Real TDX Quote");
 
@@ -59,12 +90,16 @@ async function getQuote(x25519PublicKey: Uint8Array): Promise<QuoteData> {
 
     return {
       quote,
+      verifier_data: verifierData,
       runtime_data: imaLogBytes
     };
   } catch (error) {
     console.warn(`[TunnelServer] ⚠ IMA log not available: ${error}`);
     console.warn(`[TunnelServer] Continuing without IMA measurements`);
-    return { quote };
+    return {
+      quote,
+      verifier_data: verifierData
+    };
   }
 }
 

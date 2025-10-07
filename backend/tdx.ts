@@ -5,14 +5,23 @@ const TSM_REPORT_PATH = "/sys/kernel/config/tsm/report";
 const TD_REPORT_DATA_SIZE = 64;
 
 /**
- * Hash x25519 public key with SHA-384 and pad to 64 bytes for report_data
+ * Pad report_data to 64 bytes if needed
+ * TEE-Kit uses SHA-512 (64 bytes) which fits perfectly
+ * Legacy code used SHA-384 (48 bytes) + padding
  */
-async function hashPubkeyToReportData(x25519PublicKey: Uint8Array): Promise<Uint8Array> {
-  // SHA-384 produces 48 bytes, we pad with zeros to 64 bytes
-  const hash = await crypto.subtle.digest("SHA-384", x25519PublicKey as BufferSource);
-  const reportData = new Uint8Array(TD_REPORT_DATA_SIZE);
-  reportData.set(new Uint8Array(hash), 0);
-  return reportData;
+function padReportData(reportData: Uint8Array): Uint8Array {
+  if (reportData.length === TD_REPORT_DATA_SIZE) {
+    return reportData; // Already 64 bytes
+  }
+
+  if (reportData.length > TD_REPORT_DATA_SIZE) {
+    throw new Error(`reportData too large: ${reportData.length} bytes (max ${TD_REPORT_DATA_SIZE})`);
+  }
+
+  // Pad with zeros to 64 bytes
+  const padded = new Uint8Array(TD_REPORT_DATA_SIZE);
+  padded.set(reportData, 0);
+  return padded;
 }
 
 /**
@@ -124,22 +133,15 @@ function extractRTMRs(quote: Uint8Array): RTMRs {
   };
 }
 
-export async function getQuote(x25519PublicKey: Uint8Array): Promise<Uint8Array> {
-  console.log(`[TDX] Generating quote for pubkey length: ${x25519PublicKey.length}`);
+export async function getQuote(reportData: Uint8Array): Promise<Uint8Array> {
+  console.log(`[TDX] Generating quote for report_data length: ${reportData.length} bytes`);
 
-  // Step 1: Hash the public key to create report_data
-  const reportData = await hashPubkeyToReportData(x25519PublicKey);
-  console.log(`[TDX] Report data (SHA-384): ${reportData.length} bytes`);
-
-  // Debug: Log handshake binding details
-  const sha384 = await crypto.subtle.digest("SHA-384", x25519PublicKey as BufferSource);
-  const sha384Hex = Array.from(new Uint8Array(sha384)).map(b => b.toString(16).padStart(2, '0')).join('');
-  const reportDataHex = Array.from(reportData).map(b => b.toString(16).padStart(2, '0')).join('');
-  console.log(`[Handshake Debug] SHA-384(pubkey): ${sha384Hex}`);
-  console.log(`[Handshake Debug] Report data: ${reportDataHex}`);
+  // Step 1: Pad report_data to 64 bytes if needed
+  const paddedReportData = padReportData(reportData);
+  console.log(`[TDX] Padded report_data: ${paddedReportData.length} bytes`);
 
   // Step 2: Generate TDX quote via ConfigFS-TSM
-  const quote = await getQuoteViaConfigFS(reportData);
+  const quote = await getQuoteViaConfigFS(paddedReportData);
   console.log(`[TDX] Got TDX Quote: ${quote.length} bytes`);
 
   // Step 3: Extract and log MRTD + RTMRs for policy configuration

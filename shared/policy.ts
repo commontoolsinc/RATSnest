@@ -70,13 +70,13 @@ export const policy: MRTDPolicy = {
 
   // Boot Measurements (varies with kernel/image changes)
   allowed_rtmr1: [
-    "0xdbb0a7b0bcb11901a46c8732a3923d0044a57e8abe1825c61ab4995a3b372383fa136d61f5a85352cb1931454b8bc89a"
+    "0x4484eea1a5ad776567a76d381d0e4233b28adab4d94e0f4c426f8761d98a6463b9dadb8ad4db878611a09ab5e0a999d2"
   ],
 
   // IMA Runtime Measurements (varies with code changes)
   // These verify the integrity of executed binaries at runtime
   expected_ima_measurements: {
-    "/usr/bin/ratsnest": "dcd238110e14b62276982f5146b629ab2cd8d0b9ada8802e345adbb0734b6752",
+    "/usr/bin/ratsnest": "12c7226a0a41dfd2456b4fc8eb7e547f87c6ced1a9cc18c7657d4bce550997a4",
     "/usr/lib/systemd/systemd-executor": "a0e08eb8f3e086b6d28b66369db05b45915e9bb8584859a282168b1cc44ef78d",
     "/usr/lib/x86_64-linux-gnu/libsystemd.so.0.40.0": "7ba2cab942f4aaa188d6e5409705d448eacc4ae6914ff7cd2e1302e33bb7897f",
     "/usr/lib/x86_64-linux-gnu/systemd/libsystemd-core-257.so": "f62482f05efbf5551c2a42c753978071facd336936af0b81389b7bc3a99d5bc7",

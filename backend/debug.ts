@@ -10,15 +10,23 @@ import { Hono } from "hono";
 const TD_REPORT_DATA_SIZE = 64;
 
 /**
- * Hash x25519 public key with SHA-384 and pad to 64 bytes for report_data
- * (Exported version of internal function for debugging)
+ * Compute report_data using TEE-Kit's binding format
+ * report_data = SHA-512(nonce || iat || x25519_pubkey)
  */
-export async function hashPubkeyToReportData(x25519PublicKey: Uint8Array): Promise<Uint8Array> {
-  // SHA-384 produces 48 bytes, we pad with zeros to 64 bytes
-  const hash = await crypto.subtle.digest("SHA-384", x25519PublicKey as BufferSource);
-  const reportData = new Uint8Array(TD_REPORT_DATA_SIZE);
-  reportData.set(new Uint8Array(hash), 0);
-  return reportData;
+export async function computeReportData(
+  nonce: Uint8Array,
+  iat: Uint8Array,
+  x25519PublicKey: Uint8Array
+): Promise<Uint8Array> {
+  // Concatenate: nonce (32 bytes) || iat (8 bytes) || pubkey (32 bytes) = 72 bytes
+  const combined = new Uint8Array(nonce.length + iat.length + x25519PublicKey.length);
+  combined.set(nonce, 0);
+  combined.set(iat, nonce.length);
+  combined.set(x25519PublicKey, nonce.length + iat.length);
+
+  // SHA-512 produces 64 bytes - perfect for report_data
+  const hash = await crypto.subtle.digest("SHA-512", combined);
+  return new Uint8Array(hash);
 }
 
 /**
@@ -49,13 +57,19 @@ export function createDebugRoutes() {
    * Debug endpoint: Show handshake byte details
    *
    * POST /debug/handshake-bytes
-   * Body: { "pubkey": "hex string of 32-byte x25519 public key" }
+   * Body: {
+   *   "pubkey": "hex string of 32-byte x25519 public key",
+   *   "nonce": "hex string of 32-byte nonce (optional, will generate if missing)",
+   *   "iat": "hex string of 8-byte timestamp (optional, will generate if missing)"
+   * }
    *
    * Returns:
+   * - nonce: The verifier nonce (32 bytes, hex)
+   * - iat: The issued-at timestamp (8 bytes, hex)
    * - server_pubkey: The input public key (32 bytes, hex)
-   * - hash_input: Same as server_pubkey, the bytes being hashed (32 bytes, hex)
-   * - sha384_digest: SHA-384 hash of the pubkey (48 bytes, hex)
-   * - report_data: Final report_data value (64 bytes: 48 hash + 16 zeros, hex)
+   * - combined_input: nonce || iat || pubkey (72 bytes, hex)
+   * - sha512_digest: SHA-512 hash of combined input (64 bytes, hex)
+   * - report_data: Same as sha512_digest (64 bytes, hex)
    */
   app.post('/handshake-bytes', async (c) => {
     try {
@@ -73,22 +87,55 @@ export function createDebugRoutes() {
         return c.json({ error: `Invalid pubkey length: ${pubkey.length}, expected 32 bytes` }, 400);
       }
 
-      // Compute SHA-384 hash
-      const sha384 = await crypto.subtle.digest("SHA-384", pubkey as BufferSource);
-      const sha384Bytes = new Uint8Array(sha384);
+      // Generate or parse nonce
+      let nonce: Uint8Array;
+      if (body.nonce) {
+        nonce = hexToBytes(body.nonce);
+        if (nonce.length !== 32) {
+          return c.json({ error: `Invalid nonce length: ${nonce.length}, expected 32 bytes` }, 400);
+        }
+      } else {
+        // Generate random nonce for demo
+        nonce = crypto.getRandomValues(new Uint8Array(32));
+      }
 
-      // Create report_data (48 bytes hash + 16 bytes padding)
-      const reportData = await hashPubkeyToReportData(pubkey);
+      // Generate or parse iat (issued-at timestamp)
+      let iat: Uint8Array;
+      if (body.iat) {
+        iat = hexToBytes(body.iat);
+        if (iat.length !== 8) {
+          return c.json({ error: `Invalid iat length: ${iat.length}, expected 8 bytes` }, 400);
+        }
+      } else {
+        // Generate current timestamp for demo
+        iat = new Uint8Array(8);
+        const now = BigInt(Date.now());
+        new DataView(iat.buffer).setBigUint64(0, now, false); // Big-endian
+      }
+
+      // Compute report_data = SHA-512(nonce || iat || pubkey)
+      const reportData = await computeReportData(nonce, iat, pubkey);
+
+      // Create combined input for display
+      const combined = new Uint8Array(nonce.length + iat.length + pubkey.length);
+      combined.set(nonce, 0);
+      combined.set(iat, nonce.length);
+      combined.set(pubkey, nonce.length + iat.length);
 
       // Return all the intermediate values
       return c.json({
+        nonce: bytesToHex(nonce),
+        iat: bytesToHex(iat),
         server_pubkey: bytesToHex(pubkey),
-        hash_input: bytesToHex(pubkey),
-        sha384_digest: bytesToHex(sha384Bytes),
+        combined_input: bytesToHex(combined),
+        sha512_digest: bytesToHex(reportData),
         report_data: bytesToHex(reportData),
         sizes: {
+          nonce_bytes: nonce.length,
+          iat_bytes: iat.length,
           pubkey_bytes: pubkey.length,
-          sha384_bytes: sha384Bytes.length,
+          combined_bytes: combined.length,
+          sha512_bytes: reportData.length,
           report_data_bytes: reportData.length
         }
       });
@@ -106,6 +153,91 @@ export function createDebugRoutes() {
       message: 'Debug routes active',
       warning: 'DO NOT expose these endpoints in production!'
     });
+  });
+
+  /**
+   * IMA measurement log endpoint
+   *
+   * Returns the IMA runtime measurement log which contains hashes of all
+   * files that were executed or accessed during runtime.
+   *
+   * GET /debug/ima-log
+   *
+   * Returns:
+   * - available: boolean indicating if IMA is available
+   * - entries: number of log entries
+   * - log: full IMA ascii runtime measurements (if available)
+   */
+  app.get('/ima-log', async (c) => {
+    try {
+      const imaPath = '/sys/kernel/security/ima/ascii_runtime_measurements';
+      const imaLog = await Deno.readTextFile(imaPath);
+      const entries = imaLog.split('\n').filter(line => line.length > 0);
+
+      return c.json({
+        available: true,
+        entries: entries.length,
+        log: imaLog,
+        path: imaPath
+      });
+    } catch (err) {
+      return c.json({
+        available: false,
+        error: 'IMA not available or not accessible',
+        details: String(err),
+        hint: 'Check kernel cmdline has ima_policy=tcb ima_hash=sha256'
+      }, 500);
+    }
+  });
+
+  /**
+   * IMA log summary - just counts and sample entries
+   *
+   * GET /debug/ima-summary
+   */
+  app.get('/ima-summary', async (c) => {
+    try {
+      const imaPath = '/sys/kernel/security/ima/ascii_runtime_measurements';
+      const imaLog = await Deno.readTextFile(imaPath);
+      const entries = imaLog.split('\n').filter(line => line.length > 0);
+
+      // Parse a few sample entries
+      const samples = entries.slice(0, 10).map(line => {
+        const parts = line.split(' ');
+        return {
+          pcr: parts[0],
+          template_hash: parts[1],
+          template: parts[2],
+          file_hash: parts[3],
+          filename: parts[4]
+        };
+      });
+
+      // Find ratsnest binary
+      const ratsnestEntry = entries.find(line => line.includes('/usr/bin/ratsnest'));
+      let ratsnestHash = null;
+      if (ratsnestEntry) {
+        const parts = ratsnestEntry.split(' ');
+        ratsnestHash = parts[3]; // file_hash field
+      }
+
+      return c.json({
+        available: true,
+        total_entries: entries.length,
+        sample_entries: samples,
+        ratsnest_binary: {
+          found: !!ratsnestEntry,
+          hash: ratsnestHash,
+          full_entry: ratsnestEntry
+        }
+      });
+    } catch (err) {
+      return c.json({
+        available: false,
+        error: 'IMA not available',
+        details: String(err)
+      }, 500);
+    }
   });
 
   return app;
