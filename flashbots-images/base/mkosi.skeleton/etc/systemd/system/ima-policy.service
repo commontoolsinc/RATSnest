@@ -1,0 +1,13 @@
+[Unit]
+Description=Load custom IMA policy
+DefaultDependencies=no
+After=systemd-remount-fs.service
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'cat /etc/ima-policy > /sys/kernel/security/ima/policy'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

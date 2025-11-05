@@ -1,0 +1,15 @@
+[Unit]
+Description=Basic Network Setup
+DefaultDependencies=no
+Before=network.target ratsnest.service
+Wants=network.target
+
+[Service]
+Type=oneshot
+StandardOutput=journal+console
+StandardError=journal+console
+ExecStart=/usr/bin/network-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target
