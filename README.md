@@ -1,5 +1,13 @@
 # RATSnest
 
+> [!CAUTION]
+> **Disclaimer:** RATSnest is a proof-of-concept tech demo that illustrates end-to-end confidential compute with remote attestation. It is not production-ready, so do not use it in production.
+>
+> * It uses [TeeKit](https://github.com/canvasxz/teekit) ([read this first](https://hackmd.io/@raymondz/BJdO52unlg)) to establish an encrypted, hardware-attested encryption tunnel between the browser and TDX VM on a Google Cloud Confidential VM.
+> * It uses a fork of [flashbot-images](https://github.com/flashbots/flashbots-images) to build a custom GCP Confidential VM friendly disk image with MRTD measurements, and IMA logging.
+
+
+
 **Remote Attestation Tunnel with TDX** - A minimal proof-of-concept demonstrating end-to-end confidential computing with Intel TDX remote attestation.
 
 Browser clients verify they're talking to a specific version of code running in a TDX VM using cryptographic attestation, with app-layer encryption that cloud providers cannot intercept.
