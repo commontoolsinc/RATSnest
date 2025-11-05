@@ -69,7 +69,7 @@ Browser → TunnelServer(:3000) → Hono API(:4000)
 - Mock quotes being generated
 
 **Resources**:
-- https://github.com/canvasxz/teekit
+- https://github.com/canvasxyz/teekit
 - https://hackmd.io/@raymondz/BJdO52unlg
 
 ---
